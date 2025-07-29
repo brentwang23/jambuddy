@@ -17,14 +17,14 @@ const CLIP_SIZE_SEC = '1';
 tokenClient.callback = async (resp) => {
   console.log('token client');
 }
-const upload = document.querySelector(".upload");
-upload.onclick = () => {
+const connect = document.querySelector(".connect");
+connect.onclick = () => {
   tokenClient.callback = async (resp) => {
     if (resp.error !== undefined) {
       throw (resp);
     }
 
-    await uploadFile();
+    console.log('connected');
   };
   if (gapi.client.getToken() === null) {
     // Prompt the user to select a Google Account and ask for consent to share their data
@@ -39,7 +39,7 @@ upload.onclick = () => {
 /**
  * Upload a test file.
  */
-async function uploadFile() {
+async function uploadTestFile() {
   const boundary = 'JAMBUD_BOUNDARY_STRING';
   const metadata = ({name: 'test.txt'});
   const metadataSection =
@@ -52,6 +52,53 @@ async function uploadFile() {
   const content = 'hello';
   const footer = `\r\n--${boundary}--\r\n`;
   const body = metadataSection + fileHeader + content + footer;
+
+  let response;
+  try {
+    response = await gapi.client.request({
+      path: 'https://www.googleapis.com/upload/drive/v3/files',
+      method: 'POST',
+      params: {
+        uploadType: 'multipart',
+      },
+      headers: {
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+        'Content-Length': body.size,
+      },
+      body: body,
+    })
+  } catch (err) {
+    throw err;
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, _) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Upload an audio file.
+ */
+async function uploadClip(name, clipBlob) {
+  const boundary = 'JAMBUD_BOUNDARY_STRING';
+  const metadata = ({name: name});
+  const metadataSection =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n`;
+  const contentHeader =
+    `--${boundary}\r\n` +
+    // `Content-Type: audio/wav\r\n\r\n`;
+    `Content-Transfer-Encoding: base64\r\n` +
+    `Content-Type: audio/webm;codecs=opus\r\n\r\n`;
+  let content = await blobToBase64(clipBlob);
+  content = content.substr(content.indexOf(',')+1);
+  const footer = `\r\n--${boundary}--\r\n`;
+  const body = metadataSection + contentHeader + content + footer;
 
   let response;
   try {
@@ -114,53 +161,59 @@ if (navigator.mediaDevices.getUserMedia) {
       audioCount++;
 
       const clipContainer = document.createElement("article");
-      const clipLabel = document.createElement("p");
-      const audio = document.createElement("audio");
-      const deleteButton = document.createElement("button");
-
       clipContainer.classList.add("clip");
-      audio.setAttribute("controls", "");
-      deleteButton.textContent = "Delete";
-      deleteButton.className = "delete";
-      clipLabel.textContent = clipName;
-
-      clipContainer.appendChild(audio);
-      clipContainer.appendChild(clipLabel);
-      clipContainer.appendChild(deleteButton);
       soundClips.appendChild(clipContainer);
 
+      const clipLabel = document.createElement("p");
+      clipLabel.textContent = clipName;
+      clipContainer.appendChild(clipLabel);
+
+      const deleteButton = document.createElement("button");
+      deleteButton.textContent = "Delete";
+      deleteButton.className = "delete";
       deleteButton.onclick = function (e) {
         e.target.closest(".clip").remove();
       };
+      clipContainer.appendChild(deleteButton);
 
-      if (ffmpeg === null) {
-        ffmpeg = new FFmpeg();
-        ffmpeg.on("log", ({ message }) => {
-          console.log(message);
-        })
-        ffmpeg.on("progress", ({ progress }) => {
-          message.textContent = `${progress * 100} %`;
-        });
-        await ffmpeg.load({
-          coreURL: "../../../core/dist/esm/ffmpeg-core.js",
-        });
-      }
+      // if (ffmpeg === null) {
+      //   ffmpeg = new FFmpeg();
+      //   ffmpeg.on("log", ({ message }) => {
+      //     console.log(message);
+      //   })
+      //   ffmpeg.on("progress", ({ progress }) => {
+      //     message.textContent = `${progress * 100} %`;
+      //   });
+      //   await ffmpeg.load({
+      //     coreURL: "../../../core/dist/esm/ffmpeg-core.js",
+      //   });
+      // }
 
-      const mimeFile = clipName + '.mime';
+      // const mimeFile = clipName + '.mime';
+      // const wavFile = clipName + '.wav';
+      // const finalClipFilename = clipName + '_cut.wav';
+      // await ffmpeg.writeFile(mimeFile, await fetchFile(new Blob(chunks, { type: mediaRecorder.mimeType })));
+      // // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
+      // await ffmpeg.exec(['-i', mimeFile, wavFile]);
+      // await ffmpeg.exec(['-sseof', '-' + CLIP_SIZE_SEC, '-i', wavFile, finalClipFilename]);
+      // const data = await ffmpeg.readFile(finalClipFilename);
+      // const finalClippedFile = new Blob([data.buffer], { type: 'audio/wav' });
+
+      // const audio = document.createElement("audio");
+      // audio.setAttribute("controls", "");
+      // audio.src = URL.createObjectURL(finalClippedFile);
+      // clipContainer.appendChild(audio);
+
+      // message.textContent = 'Done cutting' + clipName;
+
       const wavFile = clipName + '.wav';
-      const finalClipFilename = clipName + '_cut.wav';
-      await ffmpeg.writeFile(mimeFile + '', await fetchFile(new Blob(chunks, { type: mediaRecorder.mimeType })));
-      // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
-      await ffmpeg.exec(['-i', mimeFile, wavFile]);
-      await ffmpeg.exec(['-sseof', '-' + CLIP_SIZE_SEC, '-i', wavFile, finalClipFilename]);
-      const data = await ffmpeg.readFile(finalClipFilename);
-      audio.src = URL.createObjectURL(new Blob([data.buffer], { type: 'video/wav' }));
+      const finalClippedFile = new Blob(chunks, { type: mediaRecorder.mimeType });
+      console.log(URL.createObjectURL(finalClippedFile));
 
-      message.textContent = 'Done cutting ' + clipName;
-
-      // startRecording();
+      uploadClip(wavFile, finalClippedFile);
     };
 
+    console.log(mediaRecorder.mimeType);
     mediaRecorder.ondataavailable = function (e) {
       chunks.push(e.data);
     };

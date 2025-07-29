@@ -52,6 +52,6 @@
     */
     function maybeEnableButtons() {
       if (gapiInited && gisInited) {
-        document.querySelector(".upload").style.visibility = 'visible';
+        document.querySelector(".connect").style.visibility = 'visible';
       }
     }
