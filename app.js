@@ -4,6 +4,7 @@ import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
 // Set up basic variables for app
 const record = document.querySelector(".record");
 const stop = document.querySelector(".stop");
+stop.disabled = true; // Disabled while not recording
 const soundClips = document.querySelector(".sound-clips");
 const canvas = document.querySelector(".visualizer");
 const mainSection = document.querySelector(".main-controls");
@@ -12,8 +13,64 @@ let ffmpeg = null;
 let audioCount = 1;
 const CLIP_SIZE_SEC = '1';
 
-// Disable stop button while not recording
-stop.disabled = true;
+// GAPI stuff
+tokenClient.callback = async (resp) => {
+  console.log('token client');
+}
+const upload = document.querySelector(".upload");
+upload.onclick = () => {
+  tokenClient.callback = async (resp) => {
+    if (resp.error !== undefined) {
+      throw (resp);
+    }
+
+    await uploadFile();
+  };
+  if (gapi.client.getToken() === null) {
+    // Prompt the user to select a Google Account and ask for consent to share their data
+    // when establishing a new session.
+    tokenClient.requestAccessToken({prompt: 'consent'});
+  } else {
+    // Skip display of account chooser and consent dialog for an existing session.
+    tokenClient.requestAccessToken({prompt: ''});
+  }
+}
+
+/**
+ * Upload a test file.
+ */
+async function uploadFile() {
+  const boundary = 'JAMBUD_BOUNDARY_STRING';
+  const metadata = ({name: 'test.txt'});
+  const metadataSection =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n`;
+  const fileHeader =
+    `--${boundary}\r\n` +
+    `Content-Type: text/plain\r\n\r\n`;
+  const content = 'hello';
+  const footer = `\r\n--${boundary}--\r\n`;
+  const body = metadataSection + fileHeader + content + footer;
+
+  let response;
+  try {
+    response = await gapi.client.request({
+      path: 'https://www.googleapis.com/upload/drive/v3/files',
+      method: 'POST',
+      params: {
+        uploadType: 'multipart',
+      },
+      headers: {
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+        'Content-Length': body.size,
+      },
+      body: body,
+    })
+  } catch (err) {
+    throw err;
+  }
+}
 
 // Visualiser setup - create web audio api context and canvas
 let audioCtx;

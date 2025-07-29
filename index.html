@@ -19,6 +19,7 @@
       <div id="buttons">
         <button class="record">Record</button>
         <button class="stop">Stop</button>
+        <button class="upload" style="visibility: hidden;">Upload</button>
       </div>
       <p class="message"></p>
     </section>
@@ -26,6 +27,9 @@
     <section class="sound-clips"></section>
   </div>
 
+  <script type="text/javascript" src="./gapi_init.js"></script>
+  <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+  <script async defer src="https://accounts.google.com/gsi/client" onload="gsiLoaded()"></script>
   <script type="module" src="./app.js"></script>
 </body>
 
