@@ -9,11 +9,18 @@ const soundClips = document.querySelector(".sound-clips");
 const canvas = document.querySelector(".visualizer");
 const mainSection = document.querySelector(".main-controls");
 const message = document.querySelector('.message');
-let ffmpeg = null;
-let audioCount = 1;
 const CLIP_SIZE_SEC = '1';
 
-// GAPI stuff
+// Set visualizer size
+window.onresize = function () {
+  canvas.width = mainSection.offsetWidth;
+};
+window.onresize();
+
+// hack, wait for gapi_init.js to init tokenClient;
+await new Promise(resolve => setTimeout(resolve, 500));
+
+// init GAPI stuff
 tokenClient.callback = async (resp) => {
   console.log('token client');
 }
@@ -29,48 +36,21 @@ connect.onclick = () => {
   if (gapi.client.getToken() === null) {
     // Prompt the user to select a Google Account and ask for consent to share their data
     // when establishing a new session.
-    tokenClient.requestAccessToken({prompt: 'consent'});
+    tokenClient.requestAccessToken({ prompt: 'consent' });
   } else {
     // Skip display of account chooser and consent dialog for an existing session.
-    tokenClient.requestAccessToken({prompt: ''});
+    tokenClient.requestAccessToken({ prompt: '' });
   }
 }
 
-/**
- * Upload a test file.
- */
-async function uploadTestFile() {
-  const boundary = 'JAMBUD_BOUNDARY_STRING';
-  const metadata = ({name: 'test.txt'});
-  const metadataSection =
-    `--${boundary}\r\n` +
-    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-    `${JSON.stringify(metadata)}\r\n`;
-  const fileHeader =
-    `--${boundary}\r\n` +
-    `Content-Type: text/plain\r\n\r\n`;
-  const content = 'hello';
-  const footer = `\r\n--${boundary}--\r\n`;
-  const body = metadataSection + fileHeader + content + footer;
-
-  let response;
-  try {
-    response = await gapi.client.request({
-      path: 'https://www.googleapis.com/upload/drive/v3/files',
-      method: 'POST',
-      params: {
-        uploadType: 'multipart',
-      },
-      headers: {
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-        'Content-Length': body.size,
-      },
-      body: body,
-    })
-  } catch (err) {
-    throw err;
-  }
-}
+// Start loading ffmpeg immediately, as this can take seconds to minutes
+let ffmpegLoaded = false;
+const ffmpeg = new FFmpeg();
+ffmpeg.load({
+  coreURL: "../../../core/dist/esm/ffmpeg-core.js",
+}).then(() => {
+  ffmpegLoaded = true;
+});
 
 function blobToBase64(blob) {
   return new Promise((resolve, _) => {
@@ -85,18 +65,17 @@ function blobToBase64(blob) {
  */
 async function uploadClip(name, clipBlob) {
   const boundary = 'JAMBUD_BOUNDARY_STRING';
-  const metadata = ({name: name});
+  const metadata = ({ name: name });
   const metadataSection =
     `--${boundary}\r\n` +
     `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
     `${JSON.stringify(metadata)}\r\n`;
   const contentHeader =
     `--${boundary}\r\n` +
-    // `Content-Type: audio/wav\r\n\r\n`;
     `Content-Transfer-Encoding: base64\r\n` +
-    `Content-Type: audio/webm;codecs=opus\r\n\r\n`;
+    `Content-Type: ${clipBlob.type}\r\n\r\n`;
   let content = await blobToBase64(clipBlob);
-  content = content.substr(content.indexOf(',')+1);
+  content = content.substr(content.indexOf(',') + 1);
   const footer = `\r\n--${boundary}--\r\n`;
   const body = metadataSection + contentHeader + content + footer;
 
@@ -118,10 +97,6 @@ async function uploadClip(name, clipBlob) {
     throw err;
   }
 }
-
-// Visualiser setup - create web audio api context and canvas
-let audioCtx;
-const canvasCtx = canvas.getContext("2d");
 
 // Main block for doing the audio recording
 if (navigator.mediaDevices.getUserMedia) {
@@ -152,13 +127,12 @@ if (navigator.mediaDevices.getUserMedia) {
     };
 
     mediaRecorder.onstop = async function (e) {
-      message.textContent = "Processing, please wait...";
-
       const clipName = prompt(
         "Enter a name for your sound clip?",
-        'audio' + audioCount
+        // The Swedish locale date format is very close to toISOString, which looks nice but
+        // doesn't adjust to local timezone.
+        (new Date()).toLocaleString('sv').replace(' ', '_')
       );
-      audioCount++;
 
       const clipContainer = document.createElement("article");
       clipContainer.classList.add("clip");
@@ -176,41 +150,38 @@ if (navigator.mediaDevices.getUserMedia) {
       };
       clipContainer.appendChild(deleteButton);
 
-      // if (ffmpeg === null) {
-      //   ffmpeg = new FFmpeg();
-      //   ffmpeg.on("log", ({ message }) => {
-      //     console.log(message);
-      //   })
-      //   ffmpeg.on("progress", ({ progress }) => {
-      //     message.textContent = `${progress * 100} %`;
-      //   });
-      //   await ffmpeg.load({
-      //     coreURL: "../../../core/dist/esm/ffmpeg-core.js",
-      //   });
-      // }
+      while (!ffmpegLoaded) {
+        message.textContent = 'Loading ffmpeg...';
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
-      // const mimeFile = clipName + '.mime';
-      // const wavFile = clipName + '.wav';
-      // const finalClipFilename = clipName + '_cut.wav';
-      // await ffmpeg.writeFile(mimeFile, await fetchFile(new Blob(chunks, { type: mediaRecorder.mimeType })));
-      // // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
-      // await ffmpeg.exec(['-i', mimeFile, wavFile]);
-      // await ffmpeg.exec(['-sseof', '-' + CLIP_SIZE_SEC, '-i', wavFile, finalClipFilename]);
-      // const data = await ffmpeg.readFile(finalClipFilename);
-      // const finalClippedFile = new Blob([data.buffer], { type: 'audio/wav' });
+      message.textContent = 'Processing, please wait...';
 
-      // const audio = document.createElement("audio");
-      // audio.setAttribute("controls", "");
-      // audio.src = URL.createObjectURL(finalClippedFile);
-      // clipContainer.appendChild(audio);
-
-      // message.textContent = 'Done cutting' + clipName;
-
+      const mimeFile = clipName + '.mime';
       const wavFile = clipName + '.wav';
-      const finalClippedFile = new Blob(chunks, { type: mediaRecorder.mimeType });
-      console.log(URL.createObjectURL(finalClippedFile));
+      const finalClipFilename = clipName + '_cut.wav';
+      await ffmpeg.writeFile(mimeFile, await fetchFile(new Blob(chunks, { type: mediaRecorder.mimeType })));
+      // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
+      await ffmpeg.exec(['-i', mimeFile, wavFile]);
+      await ffmpeg.exec(['-sseof', '-' + CLIP_SIZE_SEC, '-i', wavFile, finalClipFilename]);
+      const data = await ffmpeg.readFile(finalClipFilename);
+      const finalClippedFile = new Blob([data.buffer], { type: 'audio/wav' });
+
+      const audio = document.createElement("audio");
+      audio.setAttribute("controls", "");
+      audio.src = URL.createObjectURL(finalClippedFile);
+      clipContainer.appendChild(audio);
+
+      message.textContent = 'Uploading ' + clipName + '...';
+
+      // For testing
+      // const wavFile = clipName + '.wav';
+      // const finalClippedFile = new Blob(chunks, { type: mediaRecorder.mimeType });
+      // console.log(URL.createObjectURL(finalClippedFile));
 
       uploadClip(wavFile, finalClippedFile);
+
+      message.textContent = 'Done uploading ' + clipName;
     };
 
     console.log(mediaRecorder.mimeType);
@@ -228,6 +199,10 @@ if (navigator.mediaDevices.getUserMedia) {
   alert("MediaDevices.getUserMedia() not supported on your browser!");
 }
 
+
+// Visualiser setup - create web audio api context and canvas
+let audioCtx;
+const canvasCtx = canvas.getContext("2d");
 function visualize(stream) {
   if (!audioCtx) {
     audioCtx = new AudioContext();
@@ -280,9 +255,3 @@ function visualize(stream) {
     canvasCtx.stroke();
   }
 }
-
-window.onresize = function () {
-  canvas.width = mainSection.offsetWidth;
-};
-
-window.onresize();
