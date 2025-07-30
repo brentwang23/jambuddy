@@ -3,45 +3,20 @@ import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
 
 // Set up basic variables for app
 const record = document.querySelector(".record");
+const clip1s = document.querySelector(".clip1s");
 const stop = document.querySelector(".stop");
 stop.disabled = true; // Disabled while not recording
 const soundClips = document.querySelector(".sound-clips");
 const canvas = document.querySelector(".visualizer");
 const mainSection = document.querySelector(".main-controls");
 const message = document.querySelector('.message');
-const CLIP_SIZE_SEC = '1';
+let clipSizeSec = 0;
 
 // Set visualizer size
 window.onresize = function () {
   canvas.width = mainSection.offsetWidth;
 };
 window.onresize();
-
-// hack, wait for gapi_init.js to init tokenClient;
-await new Promise(resolve => setTimeout(resolve, 500));
-
-// init GAPI stuff
-tokenClient.callback = async (resp) => {
-  console.log('token client');
-}
-const connect = document.querySelector(".connect");
-connect.onclick = () => {
-  tokenClient.callback = async (resp) => {
-    if (resp.error !== undefined) {
-      throw (resp);
-    }
-
-    console.log('connected');
-  };
-  if (gapi.client.getToken() === null) {
-    // Prompt the user to select a Google Account and ask for consent to share their data
-    // when establishing a new session.
-    tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    // Skip display of account chooser and consent dialog for an existing session.
-    tokenClient.requestAccessToken({ prompt: '' });
-  }
-}
 
 // Start loading ffmpeg immediately, as this can take seconds to minutes
 let ffmpegLoaded = false;
@@ -64,6 +39,7 @@ function blobToBase64(blob) {
  * Upload an audio file.
  */
 async function uploadClip(name, clipBlob) {
+
   const boundary = 'JAMBUD_BOUNDARY_STRING';
   const metadata = ({ name: name });
   const metadataSection =
@@ -79,9 +55,8 @@ async function uploadClip(name, clipBlob) {
   const footer = `\r\n--${boundary}--\r\n`;
   const body = metadataSection + contentHeader + content + footer;
 
-  let response;
   try {
-    response = await gapi.client.request({
+    await gapi.client.request({
       path: 'https://www.googleapis.com/upload/drive/v3/files',
       method: 'POST',
       params: {
@@ -118,13 +93,18 @@ if (navigator.mediaDevices.getUserMedia) {
 
     record.onclick = startRecording;
 
-    stop.onclick = function () {
+    function stopRecording(clipLength) {
+      clipSizeSec = clipLength;
       mediaRecorder.stop();
       record.style.background = "";
       record.style.color = "";
       stop.disabled = true;
       record.disabled = false;
-    };
+    }
+
+    clip1s.onclick = () => { stopRecording(1); }
+
+    stop.onclick = () => { stopRecording(0); };
 
     mediaRecorder.onstop = async function (e) {
       const clipName = prompt(
@@ -150,38 +130,37 @@ if (navigator.mediaDevices.getUserMedia) {
       };
       clipContainer.appendChild(deleteButton);
 
-      while (!ffmpegLoaded) {
-        message.textContent = 'Loading ffmpeg...';
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      let audioBlob = new Blob(chunks, { type: mediaRecorder.mimeType });
+
+      if (clipSizeSec != 0) {
+        while (!ffmpegLoaded) {
+          message.textContent = 'Loading ffmpeg...';
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        message.textContent = 'Cutting...';
+
+        const clipNameWav = clipName + '.wav';
+        await ffmpeg.writeFile('tmp.mime', await fetchFile(audioBlob));
+        // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
+        await ffmpeg.exec(['-i', 'tmp.mime', 'tmp.wav']);
+        await ffmpeg.exec(['-sseof', '-' + clipSizeSec, '-i', 'tmp.wav', clipNameWav]);
+        const data = await ffmpeg.readFile(clipNameWav);
+        audioBlob = new Blob([data.buffer], { type: 'audio/wav' });
+
+        if (gapiAuthed) {
+          message.textContent = 'Uploading... ' + clipName + '...';
+          uploadClip(clipNameWav, audioBlob);
+          message.textContent = "Done uploading " + clipName;
+        } else {
+          message.textContent = 'Finished cutting ' + clipName;
+        }
       }
-
-      message.textContent = 'Processing, please wait...';
-
-      const mimeFile = clipName + '.mime';
-      const wavFile = clipName + '.wav';
-      const finalClipFilename = clipName + '_cut.wav';
-      await ffmpeg.writeFile(mimeFile, await fetchFile(new Blob(chunks, { type: mediaRecorder.mimeType })));
-      // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
-      await ffmpeg.exec(['-i', mimeFile, wavFile]);
-      await ffmpeg.exec(['-sseof', '-' + CLIP_SIZE_SEC, '-i', wavFile, finalClipFilename]);
-      const data = await ffmpeg.readFile(finalClipFilename);
-      const finalClippedFile = new Blob([data.buffer], { type: 'audio/wav' });
 
       const audio = document.createElement("audio");
       audio.setAttribute("controls", "");
-      audio.src = URL.createObjectURL(finalClippedFile);
+      audio.src = URL.createObjectURL(audioBlob);
       clipContainer.appendChild(audio);
-
-      message.textContent = 'Uploading ' + clipName + '...';
-
-      // For testing
-      // const wavFile = clipName + '.wav';
-      // const finalClippedFile = new Blob(chunks, { type: mediaRecorder.mimeType });
-      // console.log(URL.createObjectURL(finalClippedFile));
-
-      uploadClip(wavFile, finalClippedFile);
-
-      message.textContent = 'Done uploading ' + clipName;
     };
 
     console.log(mediaRecorder.mimeType);
