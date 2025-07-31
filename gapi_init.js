@@ -62,7 +62,8 @@ connect.onclick = () => {
       throw (resp);
     }
 
-    connect.textContent = 'Connected to Drive';
+    connect.textContent = 'Connected';
+    connect.disabled = true;
     gapiAuthed = true;
   };
   if (gapi.client.getToken() === null) {

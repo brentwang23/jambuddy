@@ -2,10 +2,7 @@
   "dependencies": {
     "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
-    "@ffmpeg/util": "^0.12.2",
-    "fs": "^0.0.1-security",
-    "http": "^0.0.1-security",
-    "http-server": "^14.1.1"
+    "@ffmpeg/util": "^0.12.2"
   },
   "name": "pi",
   "version": "1.0.0",

@@ -47,25 +47,21 @@ canvas {
   font-size: 1rem;
   padding: 1rem;
   width: calc(50% - 0.25rem);
-}
-
-button {
-  font-size: 1rem;
   background: #0088cc;
   text-align: center;
   color: white;
   border: none;
   transition: all 0.2s;
-  padding: 0.5rem;
+  margin: 1rem 0 1rem;
 }
 
-button:hover,
-button:focus {
+#buttons button:hover,
+#buttons button:focus {
   box-shadow: inset 0px 0px 10px rgba(255, 255, 255, 1);
   background: #0ae;
 }
 
-button:active {
+#buttons button:active {
   box-shadow: inset 0px 0px 20px rgba(0, 0, 0, 0.5);
   transform: translateY(2px);
 }
@@ -117,6 +113,7 @@ button.delete {
 
 /* Adjustments for wider screens */
 @media all and (min-width: 800px) {
+
   /* Don't take all the space as readability is lost when line length
      goes past a certain size */
   .wrapper {

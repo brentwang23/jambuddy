@@ -4,25 +4,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
-  <title>Web Dictaphone</title>
+  <title>Jam Buddy</title>
   <link href="./styles.css" rel="stylesheet" type="text/css">
 </head>
 
 <body>
   <div class="wrapper">
     <header>
-      <h1>Web Dictaphone</h1>
+      <h1>Jam Buddy</h1>
     </header>
 
     <section class="main-controls">
       <canvas class="visualizer" height="60px"></canvas>
+      <button class="connect" style="visibility: hidden;">Connect to Google Drive</button>
+      <p class="message"></p>
+      <hr />
       <div id="buttons">
         <button class="record">Record</button>
-        <button class="clip1s">Clip last 1 sec</button>
-        <button class="stop">Stop</button>
-        <button class="connect" style="visibility: hidden;">Connect to Drive</button>
+        <button class="clipButton" style="visibility: hidden">Clip last 5 mins</button>
+        <button class="stop" style="visibility: hidden">Stop</button>
       </div>
-      <p class="message"></p>
     </section>
 
     <section class="sound-clips"></section>

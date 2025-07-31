@@ -3,9 +3,8 @@ import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
 
 // Set up basic variables for app
 const record = document.querySelector(".record");
-const clip1s = document.querySelector(".clip1s");
+const clipButton = document.querySelector(".clipButton");
 const stop = document.querySelector(".stop");
-stop.disabled = true; // Disabled while not recording
 const soundClips = document.querySelector(".sound-clips");
 const canvas = document.querySelector(".visualizer");
 const mainSection = document.querySelector(".main-controls");
@@ -86,27 +85,27 @@ if (navigator.mediaDevices.getUserMedia) {
     function startRecording() {
       chunks = [];
       mediaRecorder.start();
-      record.style.background = "red";
-      stop.disabled = false;
-      record.disabled = true;
+      record.style.visibility = 'hidden';
+      stop.style.visibility = 'visible';
+      clipButton.style.visibility = 'visible';
     };
 
     record.onclick = startRecording;
 
     function stopRecording(clipLength) {
+      console.log('stop');
       clipSizeSec = clipLength;
       mediaRecorder.stop();
-      record.style.background = "";
-      record.style.color = "";
-      stop.disabled = true;
-      record.disabled = false;
+      clipButton.style.visibility = 'hidden';
+      stop.style.visibility = 'hidden';
+      record.style.visibility = 'visible';
     }
 
-    clip1s.onclick = () => { stopRecording(1); }
-
+    clipButton.onclick = () => { stopRecording(5); } // 5s for testing
     stop.onclick = () => { stopRecording(0); };
 
     mediaRecorder.onstop = async function (e) {
+      console.log('onstop');
       const clipName = prompt(
         "Enter a name for your sound clip?",
         // The Swedish locale date format is very close to toISOString, which looks nice but
@@ -161,6 +160,12 @@ if (navigator.mediaDevices.getUserMedia) {
       audio.setAttribute("controls", "");
       audio.src = URL.createObjectURL(audioBlob);
       clipContainer.appendChild(audio);
+
+      const downloadLink = document.createElement("a");
+      downloadLink.href = audio.src;
+      downloadLink.textContent = "Download";
+      downloadLink.download = clipName;
+      clipContainer.appendChild(downloadLink);
     };
 
     console.log(mediaRecorder.mimeType);
