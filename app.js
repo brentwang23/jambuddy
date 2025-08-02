@@ -1,14 +1,12 @@
-const IS_LOCAL = window.location.hostname === 'localhost';
-const FFmpeg = await import(IS_LOCAL ? "./node_modules/@ffmpeg/ffmpeg/dist/esm/index.js" : "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/+esm");
-const FFmpegUtil = await import(IS_LOCAL ? "./node_modules/@ffmpeg/util/dist/esm/index.js" : "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/+esm");
+// import { FFmpeg } from "./node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
+// import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
+import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/+esm";
+import { fetchFile } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/+esm";
 
 // Set up basic variables for app
-const buttons = document.querySelector("#buttons");
 const record = document.querySelector(".record");
 const clipButton = document.querySelector(".clipButton");
-clipButton.remove();
 const stop = document.querySelector(".stop");
-stop.remove();
 const soundClips = document.querySelector(".sound-clips");
 const canvas = document.querySelector(".visualizer");
 const mainSection = document.querySelector(".main-controls");
@@ -23,9 +21,9 @@ window.onresize();
 
 // Start loading ffmpeg immediately, as this can take seconds to minutes
 let ffmpegLoaded = false;
-const ffmpeg = new FFmpeg.FFmpeg();
+const ffmpeg = new FFmpeg();
 ffmpeg.load({
-  coreURL: IS_LOCAL ? "../../../core/dist/esm/ffmpeg-core.js" : "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm/ffmpeg-core.min.js",
+  coreURL: "../../../core/dist/esm/ffmpeg-core.js",
 }).then(() => {
   ffmpegLoaded = true;
 });
@@ -89,25 +87,27 @@ if (navigator.mediaDevices.getUserMedia) {
     function startRecording() {
       chunks = [];
       mediaRecorder.start();
-      record.remove();
-      buttons.appendChild(stop);
-      buttons.appendChild(clipButton);
+      record.style.visibility = 'hidden';
+      stop.style.visibility = 'visible';
+      clipButton.style.visibility = 'visible';
     };
 
     record.onclick = startRecording;
 
     function stopRecording(clipLength) {
+      console.log('stop');
       clipSizeSec = clipLength;
       mediaRecorder.stop();
-      clipButton.remove();
-      stop.remove();
-      buttons.appendChild(record);
+      clipButton.style.visibility = 'hidden';
+      stop.style.visibility = 'hidden';
+      record.style.visibility = 'visible';
     }
 
     clipButton.onclick = () => { stopRecording(5); } // 5s for testing
     stop.onclick = () => { stopRecording(0); };
 
     mediaRecorder.onstop = async function (e) {
+      console.log('onstop');
       const clipName = prompt(
         "Enter a name for your sound clip?",
         // The Swedish locale date format is very close to toISOString, which looks nice but
@@ -142,7 +142,7 @@ if (navigator.mediaDevices.getUserMedia) {
         message.textContent = 'Cutting...';
 
         const clipNameWav = clipName + '.wav';
-        await ffmpeg.writeFile('tmp.mime', await FFmpegUtil.fetchFile(audioBlob));
+        await ffmpeg.writeFile('tmp.mime', await fetchFile(audioBlob));
         // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
         await ffmpeg.exec(['-i', 'tmp.mime', 'tmp.wav']);
         await ffmpeg.exec(['-sseof', '-' + clipSizeSec, '-i', 'tmp.wav', clipNameWav]);
@@ -170,6 +170,7 @@ if (navigator.mediaDevices.getUserMedia) {
       clipContainer.appendChild(downloadLink);
     };
 
+    console.log(mediaRecorder.mimeType);
     mediaRecorder.ondataavailable = function (e) {
       chunks.push(e.data);
     };
