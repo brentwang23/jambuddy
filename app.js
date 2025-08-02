@@ -96,7 +96,6 @@ if (navigator.mediaDevices.getUserMedia) {
     record.onclick = startRecording;
 
     function stopRecording(clipLength) {
-      console.log('stop');
       clipSizeSec = clipLength;
       mediaRecorder.stop();
       clipButton.remove();
@@ -104,11 +103,10 @@ if (navigator.mediaDevices.getUserMedia) {
       buttons.appendChild(record);
     }
 
-    clipButton.onclick = () => { stopRecording(5); } // 5s for testing
+    clipButton.onclick = () => { stopRecording(300); } // 300s === 5m
     stop.onclick = () => { stopRecording(0); };
 
     mediaRecorder.onstop = async function (e) {
-      console.log('onstop');
       const clipName = prompt(
         "Enter a name for your sound clip?",
         // The Swedish locale date format is very close to toISOString, which looks nice but
@@ -171,7 +169,6 @@ if (navigator.mediaDevices.getUserMedia) {
       clipContainer.appendChild(downloadLink);
     };
 
-    console.log(mediaRecorder.mimeType);
     mediaRecorder.ondataavailable = function (e) {
       chunks.push(e.data);
     };
