@@ -1,5 +1,7 @@
-import { FFmpeg } from "./node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
-import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
+// import { FFmpeg } from "./node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
+// import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
+import { FFmpeg } from "https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/+esm";
+import { fetchFile } from "https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/+esm";
 
 // Set up basic variables for app
 const record = document.querySelector(".record");
