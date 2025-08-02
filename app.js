@@ -2,9 +2,12 @@ import { FFmpeg } from "./node_modules/@ffmpeg/ffmpeg/dist/esm/index.js";
 import { fetchFile } from "./node_modules/@ffmpeg/util/dist/esm/index.js";
 
 // Set up basic variables for app
+const buttons = document.querySelector("#buttons");
 const record = document.querySelector(".record");
 const clipButton = document.querySelector(".clipButton");
+clipButton.remove();
 const stop = document.querySelector(".stop");
+stop.remove();
 const soundClips = document.querySelector(".sound-clips");
 const canvas = document.querySelector(".visualizer");
 const mainSection = document.querySelector(".main-controls");
@@ -85,9 +88,9 @@ if (navigator.mediaDevices.getUserMedia) {
     function startRecording() {
       chunks = [];
       mediaRecorder.start();
-      record.style.visibility = 'hidden';
-      stop.style.visibility = 'visible';
-      clipButton.style.visibility = 'visible';
+      record.remove();
+      buttons.appendChild(clipButton);
+      buttons.appendChild(stop);
     };
 
     record.onclick = startRecording;
@@ -96,9 +99,9 @@ if (navigator.mediaDevices.getUserMedia) {
       console.log('stop');
       clipSizeSec = clipLength;
       mediaRecorder.stop();
-      clipButton.style.visibility = 'hidden';
-      stop.style.visibility = 'hidden';
-      record.style.visibility = 'visible';
+      clipButton.remove();
+      stop.remove();
+      buttons.appendChild(record);
     }
 
     clipButton.onclick = () => { stopRecording(5); } // 5s for testing
