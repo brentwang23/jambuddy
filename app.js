@@ -132,29 +132,29 @@ if (navigator.mediaDevices.getUserMedia) {
 
       let audioBlob = new Blob(chunks, { type: mediaRecorder.mimeType });
 
+      while (!ffmpegLoaded) {
+        message.textContent = 'Loading ffmpeg...';
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      message.textContent = 'Processing...';
+
+      const clipNameWav = clipName + '.wav';
+      await ffmpeg.writeFile('tmp.mime', await fetchFile(audioBlob));
+      // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
+      await ffmpeg.exec(['-i', 'tmp.mime', 'tmp.wav']);
       if (clipSizeSec != 0) {
-        while (!ffmpegLoaded) {
-          message.textContent = 'Loading ffmpeg...';
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        message.textContent = 'Cutting...';
-
-        const clipNameWav = clipName + '.wav';
-        await ffmpeg.writeFile('tmp.mime', await fetchFile(audioBlob));
-        // Need to convert to .wav first, otherwise ffmpeg can't tell the file duration.
-        await ffmpeg.exec(['-i', 'tmp.mime', 'tmp.wav']);
         await ffmpeg.exec(['-sseof', '-' + clipSizeSec, '-i', 'tmp.wav', clipNameWav]);
-        const data = await ffmpeg.readFile(clipNameWav);
-        audioBlob = new Blob([data.buffer], { type: 'audio/wav' });
+      }
+      const data = await ffmpeg.readFile(clipNameWav);
+      audioBlob = new Blob([data.buffer], { type: 'audio/wav' });
 
-        if (gapiAuthed) {
-          message.textContent = 'Uploading... ' + clipName + '...';
-          uploadClip(clipNameWav, audioBlob);
-          message.textContent = "Done uploading " + clipName;
-        } else {
-          message.textContent = 'Finished cutting ' + clipName;
-        }
+      if (gapiAuthed) {
+        message.textContent = 'Uploading... ' + clipName + '...';
+        uploadClip(clipNameWav, audioBlob);
+        message.textContent = "Done uploading " + clipName;
+      } else {
+        message.textContent = 'Finished cutting ' + clipName;
       }
 
       const audio = document.createElement("audio");
