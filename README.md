@@ -8,8 +8,7 @@
 # Known Issues
 1. I have not completed verification for my Google API OAuth app yet, so connecting to Drive requires passing through a scary warning message.
 2. If you leave the browser for too long, Chrome or OS memory optimization will deload the page and refresh on return, causing any ongoing recording to be lost. This is especially common on older devices.
-3. Clicking "Clip last 5 min" creates a .wav file and automatically uploads to Drive, if connected. Clicking "Stop" just creates a downloadable .webm file instead and does not ever try to upload. This difference in behavior should either be changed or more clearly indicated.
-4. The UI (and the code) are ugly as butt.
+3. The UI (and the code) are ugly as butt :P
 
 # Implementation
 
